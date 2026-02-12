@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Officer Dashboard | ICT Help Desk</title>
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <style>
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      overflow: auto;
+    }
+
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+      line-height: 1;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+    }
+
+    .close-btn:hover {
+      color: #333;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-section h3 {
+      margin: 0 0 10px 0;
+      color: #555;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: #666;
+      min-width: 140px;
+    }
+
+    .detail-value {
+      color: #333;
+      flex: 1;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.open {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    .status-badge.in-progress {
+      background-color: #cce5ff;
+      color: #004085;
+    }
+
+    .status-badge.closed {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .modal-actions {
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 2px solid #eee;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Make table rows clickable */
+    #tickets-table tbody tr {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    #tickets-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    /* Notification Badge */
+    .notification-badge {
+      display: inline-block;
+      background-color: #dc3545;
+      color: white;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 8px;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    /* Feedback List */
+    .feedback-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .feedback-item {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: box-shadow 0.2s;
+    }
+
+    .feedback-item:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .feedback-item.new {
+      border-left: 4px solid #007bff;
+      background: #f8f9ff;
+    }
+
+    .feedback-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .feedback-title {
+      font-weight: 600;
+      color: #333;
+      font-size: 16px;
+      margin: 0 0 4px 0;
+    }
+
+    .feedback-meta {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .feedback-rating {
+      display: flex;
+      gap: 4px;
+      font-size: 18px;
+    }
+
+    .star {
+      color: #ffd700;
+    }
+
+    .star.empty {
+      color: #ddd;
+    }
+
+    .feedback-body {
+      margin: 12px 0;
+    }
+
+    .feedback-comment {
+      color: #444;
+      line-height: 1.6;
+      font-size: 14px;
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+
+    .feedback-ticket-info {
+      font-size: 13px;
+      color: #666;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .feedback-timestamp {
+      font-size: 12px;
+      color: #999;
+      margin-top: 8px;
+    }
+
+    .no-feedback {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .no-feedback-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">ICT Help Desk</div>
+
+    <button class="nav-item active" data-panel="ticketsPanel">Assigned Tickets</button>
+    <button class="nav-item" data-panel="feedbackPanel">
+      Feedback
+      <span id="feedbackBadge" class="notification-badge" style="display: none;">0</span>
+    </button>
+    <button class="nav-item" data-panel="registerStaffPanel">Register Staff</button>
+    <button class="nav-item" data-panel="staffPanel">Registered Staff</button>
+
+    <button id="logoutBtn" class="logout">Logout</button>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <div class="topbar">
+      <h2>Officer Dashboard</h2>
+    </div>
+
+    <!-- TICKETS -->
+    <div id="ticketsPanel" class="panel active">
+      <div class="cards">
+        <div class="card"><span>Open</span><strong id="openTickets">0</strong></div>
+        <div class="card"><span>In Progress</span><strong id="inProgressTickets">0</strong></div>
+        <div class="card"><span>Closed</span><strong id="closedTickets">0</strong></div>
+      </div>
+
+      <div class="table-card large">
+        <table id="tickets-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Title</th><th>Status</th>
+              <th>Location</th><th>Opened</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div id="feedbackPanel" class="panel">
+      <h3 style="margin-bottom: 20px;">Staff Feedback</h3>
+      
+      <div id="feedbackContainer" class="feedback-list">
+        <!-- Feedback items will be inserted here -->
+      </div>
+    </div>
+
+    <!-- REGISTER STAFF -->
+    <div id="registerStaffPanel" class="panel">
+      <div class="form-card">
+        <h3>Register New Staff</h3>
+
+        <form id="staffForm">
+          <input id="fullName" placeholder="Full Name" required />
+          <input id="email" type="email" placeholder="Email" required />
+          <input id="password" type="password" placeholder="Temporary Password" required />
+          <button class="btn primary">Register Staff</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- VIEW STAFF -->
+    <div id="staffPanel" class="panel">
+      <div class="table-card large">
+        <table id="staffTable">
+          <thead>
+            <tr>
+              <th>ID</th><th>Full Name</th><th>Email</th><th>Registered</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TICKET DETAILS MODAL -->
+<div id="ticketModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Ticket Details</h2>
+      <button class="close-btn" onclick="closeTicketModal()">&times;</button>
+    </div>
+
+    <div class="detail-section">
+      <h3>Ticket Information</h3>
+      <div class="detail-row">
+        <span class="detail-label">Ticket ID:</span>
+        <span class="detail-value" id="modal-ticket-id">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Title:</span>
+        <span class="detail-value" id="modal-ticket-title">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Status:</span>
+        <span class="detail-value" id="modal-ticket-status">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Description:</span>
+        <span class="detail-value" id="modal-ticket-description">-</span>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>User Information</h3>
+      <div class="detail-row">
+        <span class="detail-label">Name:</span>
+        <span class="detail-value" id="modal-user-name">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Email:</span>
+        <span class="detail-value" id="modal-user-email">-</span>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Location Information</h3>
+      <div class="detail-row">
+        <span class="detail-label">Location:</span>
+        <span class="detail-value" id="modal-location-name">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Building:</span>
+        <span class="detail-value" id="modal-location-building">-</span>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Timeline</h3>
+      <div class="detail-row">
+        <span class="detail-label">Opened At:</span>
+        <span class="detail-value" id="modal-opened-at">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Closed At:</span>
+        <span class="detail-value" id="modal-closed-at">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Solved By:</span>
+        <span class="detail-value" id="modal-solved-by">-</span>
+      </div>
+    </div>
+
+    <div class="modal-actions" id="modal-actions">
+      <!-- Dynamic action buttons will be inserted here -->
+    </div>
+  </div>
+</div>
+<script src="js/auth-helper.js"></script>
+<script src="js/officer-dashboard.js"></script>
+</body>
+</html>

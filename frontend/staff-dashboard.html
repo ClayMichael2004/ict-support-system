@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Staff Dashboard - ICT Help Desk</title>
+  <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">ICT Help Desk</div>
+
+    <button class="nav-item active" data-panel="ticketsPanel">My Tickets</button>
+    <button class="nav-item" data-panel="createPanel">Create Ticket</button>
+
+    <button class="logout" id="logoutBtn">Logout</button>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="content">
+    <div class="topbar">
+      <h2>Staff Dashboard</h2>
+    </div>
+
+    <!-- MY TICKETS -->
+    <div class="panel active" id="ticketsPanel">
+      <div class="cards">
+        <div class="card">
+          <span>Open Tickets</span>
+          <strong id="openTickets">0</strong>
+        </div>
+        <div class="card">
+          <span>Closed Tickets</span>
+          <strong id="closedTickets">0</strong>
+        </div>
+      </div>
+
+      <div class="table-card large" style="margin-top:30px;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Location</th>
+              <th>Opened</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tickets-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CREATE TICKET -->
+    <div class="panel" id="createPanel">
+      <div class="form-card">
+
+        <h3>Select Issue Category</h3>
+
+        <div id="categoryContainer" class="category-grid"></div>
+
+
+        <form id="ticketForm" style="margin-top:25px;">
+          <select id="locationSelect" required>
+            <option value="">Select Location</option>
+          </select>
+
+          <textarea id="description" placeholder="Describe the issue..." required></textarea>
+
+          <button type="submit">Submit Ticket</button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="js/auth-helper.js"></script>
+<script src="js/staff-dashboard.js"></script>
+</body>
+</html>

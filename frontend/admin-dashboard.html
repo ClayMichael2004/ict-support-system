@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard | ICT Help Desk</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">ICT Help Desk</div>
+
+    <nav>
+      <button class="nav-item active" data-panel="overview">Overview</button>
+      <button class="nav-item" data-panel="officers">Officers</button>
+      <button class="nav-item" data-panel="locations">Locations</button>
+      <button class="nav-item" data-panel="tickets">Tickets</button>
+      <button class="nav-item" data-panel="audit">Audit Logs</button>
+    </nav>
+
+    <button id="logoutBtn" class="logout">Logout</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="content">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <h1>Admin Dashboard</h1>
+    </header>
+
+    <!-- OVERVIEW -->
+    <section class="panel active" id="overview">
+      <div class="cards">
+        <div class="card">
+          <span>Total Officers</span>
+          <strong id="totalOfficers">0</strong>
+        </div>
+        <div class="card">
+          <span>Total Locations</span>
+          <strong id="totalLocations">0</strong>
+        </div>
+        <div class="card">
+          <span>Open Tickets</span>
+          <strong id="openTickets">0</strong>
+        </div>
+        <div class="card">
+          <span>Closed Tickets</span>
+          <strong id="closedTickets">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- OFFICERS -->
+    <section class="panel" id="officers">
+      <div class="panel-header">
+        <h2>Manage Officers</h2>
+      </div>
+
+      <div class="form-card">
+        <form id="addOfficerForm">
+          <input type="text" id="fullName" placeholder="Full Name" required />
+          <input type="email" id="email" placeholder="Email" required />
+          <input type="password" id="password" placeholder="Password" required />
+          <button type="submit">Create Officer</button>
+        </form>
+      </div>
+
+      <div class="table-card">
+        <table id="officers-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Full Name</th>
+              <th>Email</th>
+              <th>Locations</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LOCATIONS -->
+    <section class="panel" id="locations">
+      <div class="panel-header">
+        <h2>Manage Locations</h2>
+      </div>
+
+      <div class="form-card">
+        <form id="addLocationForm">
+          <input type="text" id="locationName" placeholder="Location Name" required />
+          <input type="text" id="building" placeholder="Building" />
+          <select id="officerSelect" required></select>
+          <button type="submit">Create Location</button>
+        </form>
+      </div>
+
+      <div class="table-card">
+        <table id="locations-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Building</th>
+              <th>Officer</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TICKETS -->
+    <section class="panel" id="tickets">
+      <div class="panel-header">
+        <h2>Support Tickets</h2>
+      </div>
+
+      <div class="table-card large">
+        <table id="tickets-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>User</th>
+              <th>Location</th>
+              <th>Officer</th>
+              <th>Opened</th>
+              <th>Closed</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section class="panel" id="audit">
+      <div class="panel-header">
+        <h2>Audit Logs</h2>
+      </div>
+
+      <div class="table-card large">
+        <table id="audit-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>Entity ID</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="js/auth-helper.js"></script>
+<script src="js/admin-dashboard.js"></script>
+
+<script>
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.panel).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

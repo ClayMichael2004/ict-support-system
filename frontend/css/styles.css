@@ -1,0 +1,106 @@
+/* ===============================
+   GLOBAL RESET & BASE
+================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #a97412, #e3e7e8, #dbd08d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f7f9fb;
+}
+
+/* ===============================
+   LOGIN CONTAINER
+================================ */
+#login-container {
+  background: #ffffff;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: 14px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  border-top: 6px solid #111827;
+}
+
+#login-container h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 26px;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: 0.5px;
+}
+
+/* ===============================
+   FORM ELEMENTS
+================================ */
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+#login-form input {
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 15px;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+#login-form input:focus {
+  outline: none;
+  border-color: #decc85;
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.15);
+}
+
+/* ===============================
+   BUTTON
+================================ */
+#login-form button {
+  margin-top: 10px;
+  padding: 14px;
+  background: #11d224;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
+}
+
+#login-form button:hover {
+  background: #e01b0d;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* ===============================
+   ERROR MESSAGE
+================================ */
+#login-error {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ===============================
+   FOOTER TEXT
+================================ */
+.auth-footer {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+}
