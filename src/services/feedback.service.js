@@ -18,7 +18,8 @@ const submitFeedback = async ({ ticketId, rating, comment, staffId }) => {
     throw new ApiError(400, 'Feedback allowed only for closed tickets');
   }
 
-  if (ticket.user_id !== staffId) {
+  // ✅ Parse both as integers for correct comparison
+  if (parseInt(ticket.user_id) !== parseInt(staffId)) {
     throw new ApiError(403, 'You can only rate your own ticket');
   }
 
@@ -32,18 +33,22 @@ const submitFeedback = async ({ ticketId, rating, comment, staffId }) => {
     throw new ApiError(400, 'Feedback already submitted for this ticket');
   }
 
-  // 3. Insert feedback (rating & comment optional)
+  // 3. Parse rating and comment properly
+  const parsedRating = rating ? parseInt(rating) : null;
+  const parsedComment = comment && comment.trim() !== '' ? comment.trim() : null;
+
+  // 4. Insert feedback
   const [result] = await pool.query(
     `INSERT INTO ticket_feedback (ticket_id, rating, comment)
      VALUES (?, ?, ?)`,
-    [ticketId, rating || null, comment || null]
+    [ticketId, parsedRating, parsedComment]
   );
 
   return {
     id: result.insertId,
     ticketId,
-    rating,
-    comment,
+    rating: parsedRating,
+    comment: parsedComment,
   };
 };
 
@@ -57,6 +62,7 @@ const getOfficerFeedback = async (officerId) => {
        f.ticket_id,
        f.rating,
        f.comment,
+       f.is_read,
        f.created_at,
        t.title AS ticket_title,
        t.description AS ticket_description,
@@ -74,7 +80,7 @@ const getOfficerFeedback = async (officerId) => {
 };
 
 /**
- * Get count of unread/new feedback (created in last 24 hours)
+ * Get count of UNREAD feedback (for notification badge)
  */
 const getUnreadFeedbackCount = async (officerId) => {
   const [rows] = await pool.query(
@@ -82,15 +88,30 @@ const getUnreadFeedbackCount = async (officerId) => {
      FROM ticket_feedback f
      INNER JOIN tickets t ON f.ticket_id = t.id
      WHERE t.assigned_officer_id = ?
-     AND f.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
+     AND f.is_read = 0`,
     [officerId]
   );
 
   return rows[0].count;
 };
 
+/**
+ * Mark all feedback as read for this officer
+ */
+const markFeedbackAsRead = async (officerId) => {
+  await pool.query(
+    `UPDATE ticket_feedback f
+     INNER JOIN tickets t ON f.ticket_id = t.id
+     SET f.is_read = 1
+     WHERE t.assigned_officer_id = ?
+     AND f.is_read = 0`,
+    [officerId]
+  );
+};
+
 module.exports = {
   submitFeedback,
   getOfficerFeedback,
   getUnreadFeedbackCount,
+  markFeedbackAsRead,
 };

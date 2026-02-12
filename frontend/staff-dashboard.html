@@ -4,6 +4,83 @@
   <meta charset="UTF-8" />
   <title>Staff Dashboard - ICT Help Desk</title>
   <link rel="stylesheet" href="css/dashboard.css" />
+  <style>
+    /* Star rating buttons */
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 36px;
+      cursor: pointer;
+      color: #ddd;
+      transition: color 0.15s, transform 0.1s;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .star-btn.selected {
+      color: #ffd700;
+    }
+
+    .star-btn:hover {
+      transform: scale(1.1);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      overflow: auto;
+    }
+
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .close-btn:hover {
+      color: #333;
+    }
+  </style>
 </head>
 <body>
 <div class="layout">
@@ -62,7 +139,6 @@
 
         <div id="categoryContainer" class="category-grid"></div>
 
-
         <form id="ticketForm" style="margin-top:25px;">
           <select id="locationSelect" required>
             <option value="">Select Location</option>
@@ -78,6 +154,55 @@
 
   </div>
 </div>
+
+<!-- FEEDBACK MODAL -->
+<div id="feedbackModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Rate This Ticket</h2>
+      <button class="close-btn" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+
+    <form id="feedbackForm">
+      <input type="hidden" id="feedbackTicketId" />
+      <input type="hidden" id="selectedRating" />
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 12px; color: #555;">
+          How would you rate the service?
+        </label>
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <button type="button" class="star-btn" data-value="1" title="Poor">★</button>
+          <button type="button" class="star-btn" data-value="2" title="Fair">★</button>
+          <button type="button" class="star-btn" data-value="3" title="Good">★</button>
+          <button type="button" class="star-btn" data-value="4" title="Very Good">★</button>
+          <button type="button" class="star-btn" data-value="5" title="Excellent">★</button>
+        </div>
+        <p style="text-align: center; font-size: 12px; color: #999; margin-top: 8px;">
+          Click a star to rate (optional)
+        </p>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #555;">
+          Leave a comment (optional)
+        </label>
+        <textarea
+          id="feedbackComment"
+          placeholder="Share your experience..."
+          rows="4"
+          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: vertical; box-sizing: border-box;"
+        ></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn primary" style="flex: 1;">Submit Feedback</button>
+        <button type="button" class="btn" onclick="closeFeedbackModal()" style="flex: 1;">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="js/auth-helper.js"></script>
 <script src="js/staff-dashboard.js"></script>
 </body>

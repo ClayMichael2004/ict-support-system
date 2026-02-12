@@ -57,7 +57,7 @@ const loadCategories = async () => {
 
         card.classList.add('selected');
         selectedCategoryId = cat.id;
-        selectedCategory = cat; // fix original usage
+        selectedCategory = cat;
       });
 
       categoryContainer.appendChild(card);
@@ -123,7 +123,7 @@ const fetchTickets = async () => {
         <td>${new Date(t.opened_at).toLocaleString()}</td>
         <td>
           ${t.status === 'CLOSED'
-            ? `<button class="btn" onclick="submitFeedback(${t.id})">Feedback</button>`
+            ? `<button class="btn" onclick="openFeedbackModal(${t.id})">Feedback</button>`
             : '-'}
         </td>
       `;
@@ -185,13 +185,48 @@ document.getElementById('ticketForm').addEventListener('submit', async e => {
   }
 });
 
-/* FEEDBACK */
-const submitFeedback = async ticketId => {
-  try {
-    const rating = prompt('Rate service (1–5). Optional');
-    const comment = prompt('Comment (optional)');
+/* =======================
+   FEEDBACK MODAL
+======================= */
+const openFeedbackModal = (ticketId) => {
+  document.getElementById('feedbackTicketId').value = ticketId;
+  document.getElementById('feedbackModal').classList.add('active');
+  // Reset form state
+  document.getElementById('selectedRating').value = '';
+  document.getElementById('feedbackComment').value = '';
+  document.querySelectorAll('.star-btn').forEach(s => s.classList.remove('selected'));
+};
 
-    const res = await fetch('http://localhost:5000/api/feedback', {
+const closeFeedbackModal = () => {
+  document.getElementById('feedbackModal').classList.remove('active');
+};
+
+// Close modal when clicking outside
+document.getElementById('feedbackModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('feedbackModal')) closeFeedbackModal();
+});
+
+// Star rating selection
+document.querySelectorAll('.star-btn').forEach(star => {
+  star.addEventListener('click', () => {
+    const value = parseInt(star.dataset.value);
+    document.getElementById('selectedRating').value = value;
+    document.querySelectorAll('.star-btn').forEach(s => {
+      s.classList.toggle('selected', parseInt(s.dataset.value) <= value);
+    });
+  });
+});
+
+// Submit feedback form
+document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const ticketId = parseInt(document.getElementById('feedbackTicketId').value);
+  const rating = parseInt(document.getElementById('selectedRating').value) || null;
+  const comment = document.getElementById('feedbackComment').value.trim() || null;
+
+  try {
+    const res = await fetch('/api/feedback', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -207,12 +242,20 @@ const submitFeedback = async ticketId => {
       return;
     }
 
-    alert('Feedback submitted');
+    closeFeedbackModal();
+    alert('Feedback submitted successfully!');
+    fetchTickets();
+
   } catch (err) {
     console.error(err);
     alert('Error submitting feedback');
   }
-};
+});
+
+// refresh tickets silently every 60 seconds
+setInterval(() => {
+  fetchTickets();
+}, 60000);
 
 // INIT
 loadCategories();

@@ -1,8 +1,13 @@
 const asyncHandler = require('../utils/asyncHandler');
-const { submitFeedback, getOfficerFeedback, getUnreadFeedbackCount } = require('../services/feedback.service');
+const {
+  submitFeedback,
+  getOfficerFeedback,
+  getUnreadFeedbackCount,
+  markFeedbackAsRead,
+} = require('../services/feedback.service');
 
 /**
- * USER / STAFF: Submit optional feedback after ticket is closed
+ * STAFF: Submit feedback after ticket is closed
  */
 const submitFeedbackController = asyncHandler(async (req, res) => {
   const { ticketId, rating, comment } = req.body;
@@ -26,7 +31,7 @@ const submitFeedbackController = asyncHandler(async (req, res) => {
  */
 const getOfficerFeedbackController = asyncHandler(async (req, res) => {
   const feedback = await getOfficerFeedback(req.user.id);
-  
+
   res.status(200).json({
     success: true,
     data: feedback,
@@ -34,14 +39,26 @@ const getOfficerFeedbackController = asyncHandler(async (req, res) => {
 });
 
 /**
- * OFFICER: Get count of new feedback (for notification badge)
+ * OFFICER: Get count of unread feedback (for notification badge)
  */
 const getFeedbackCountController = asyncHandler(async (req, res) => {
   const count = await getUnreadFeedbackCount(req.user.id);
-  
+
   res.status(200).json({
     success: true,
     data: { count },
+  });
+});
+
+/**
+ * OFFICER: Mark all feedback as read
+ */
+const markFeedbackAsReadController = asyncHandler(async (req, res) => {
+  await markFeedbackAsRead(req.user.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Feedback marked as read',
   });
 });
 
@@ -49,4 +66,5 @@ module.exports = {
   submitFeedbackController,
   getOfficerFeedbackController,
   getFeedbackCountController,
+  markFeedbackAsReadController,
 };

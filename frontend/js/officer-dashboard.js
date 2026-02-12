@@ -264,7 +264,7 @@ const fetchFeedback = async () => {
     }
 
     data.forEach(feedback => {
-      const isNew = isWithin24Hours(feedback.created_at);
+      const isNew = !feedback.is_read;
       const stars = renderStars(feedback.rating);
       
       const feedbackEl = document.createElement('div');
@@ -298,8 +298,27 @@ const fetchFeedback = async () => {
       feedbackContainer.appendChild(feedbackEl);
     });
 
+    // ✅ Mark all as read and clear badge
+    await markFeedbackAsRead();
+
   } catch (err) {
     feedbackContainer.innerHTML = '<p style="color: red;">Failed to load feedback</p>';
+  }
+};
+
+/* =======================
+   MARK FEEDBACK AS READ
+======================= */
+const markFeedbackAsRead = async () => {
+  try {
+    await AuthHelper.fetchWithAuth('/api/officer/feedback/read', {
+      method: 'PATCH',
+    });
+    // Clear badge immediately
+    feedbackBadge.style.display = 'none';
+    feedbackBadge.textContent = '0';
+  } catch (err) {
+    console.error('Failed to mark feedback as read');
   }
 };
 
@@ -336,13 +355,6 @@ const renderStars = (rating) => {
   return stars;
 };
 
-const isWithin24Hours = (timestamp) => {
-  const now = new Date();
-  const feedbackTime = new Date(timestamp);
-  const diffHours = (now - feedbackTime) / (1000 * 60 * 60);
-  return diffHours <= 24;
-};
-
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -358,6 +370,15 @@ const formatTimestamp = (timestamp) => {
   
   return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
 };
+// Poll every 30 seconds
+setInterval(() => {
+  fetchFeedbackCount(); // Updates the badge silently in background
+}, 30000);
+
+// Also refresh tickets silently every 60 seconds
+setInterval(() => {
+  fetchTickets();
+}, 60000);
 
 /* INIT */
 fetchTickets();
