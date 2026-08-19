@@ -1607,7 +1607,7 @@ ISC License - See package.json
 For questions or issues:
 1. Check existing issues on repository
 2. Create detailed bug report with steps to reproduce
-3. Contact development team at dev@company.com
+3. Contact development team at michaelclay2225@gmail.com
 
 ---
 
