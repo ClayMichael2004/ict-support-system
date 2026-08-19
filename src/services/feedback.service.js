@@ -53,60 +53,72 @@ const submitFeedback = async ({ ticketId, rating, comment, staffId }) => {
 };
 
 /**
- * Get all feedback for tickets assigned to this officer
+ * Get all feedback for tickets assigned to this officer (or all if admin)
  */
-const getOfficerFeedback = async (officerId) => {
-  const [rows] = await pool.query(
-    `SELECT 
+const getOfficerFeedback = async (officerId, isAdmin = false) => {
+  let query = `
+    SELECT 
        f.id,
        f.ticket_id,
        f.rating,
        f.comment,
        f.is_read,
        f.created_at,
-       t.title AS ticket_title,
-       t.description AS ticket_description,
-       u.full_name AS staff_name,
-       u.email AS staff_email
+       COALESCE(t.title, 'Support Ticket') AS ticket_title,
+       COALESCE(t.description, '') AS ticket_description,
+       COALESCE(u.full_name, 'Staff Member') AS staff_name,
+       COALESCE(u.email, 'N/A') AS staff_email
      FROM ticket_feedback f
-     INNER JOIN tickets t ON f.ticket_id = t.id
-     INNER JOIN users u ON t.user_id = u.id
-     WHERE t.assigned_officer_id = ?
-     ORDER BY f.created_at DESC`,
-    [officerId]
-  );
+     LEFT JOIN tickets t ON f.ticket_id = t.id
+     LEFT JOIN users u ON t.user_id = u.id
+  `;
+  const params = [];
+  if (!isAdmin) {
+    query += ` WHERE t.assigned_officer_id = ?`;
+    params.push(officerId);
+  }
+  query += ` ORDER BY f.created_at DESC`;
 
+  const [rows] = await pool.query(query, params);
   return rows;
 };
 
 /**
  * Get count of UNREAD feedback (for notification badge)
  */
-const getUnreadFeedbackCount = async (officerId) => {
-  const [rows] = await pool.query(
-    `SELECT COUNT(*) AS count
-     FROM ticket_feedback f
-     INNER JOIN tickets t ON f.ticket_id = t.id
-     WHERE t.assigned_officer_id = ?
-     AND f.is_read = 0`,
-    [officerId]
-  );
+const getUnreadFeedbackCount = async (officerId, isAdmin = false) => {
+  let query = `
+    SELECT COUNT(*) AS count
+    FROM ticket_feedback f
+    LEFT JOIN tickets t ON f.ticket_id = t.id
+    WHERE f.is_read = 0
+  `;
+  const params = [];
+  if (!isAdmin) {
+    query += ` AND t.assigned_officer_id = ?`;
+    params.push(officerId);
+  }
 
-  return rows[0].count;
+  const [rows] = await pool.query(query, params);
+  return rows[0] ? rows[0].count : 0;
 };
 
 /**
  * Mark all feedback as read for this officer
  */
-const markFeedbackAsRead = async (officerId) => {
-  await pool.query(
-    `UPDATE ticket_feedback f
-     INNER JOIN tickets t ON f.ticket_id = t.id
-     SET f.is_read = 1
-     WHERE t.assigned_officer_id = ?
-     AND f.is_read = 0`,
-    [officerId]
-  );
+const markFeedbackAsRead = async (officerId, isAdmin = false) => {
+  if (isAdmin) {
+    await pool.query('UPDATE ticket_feedback SET is_read = 1 WHERE is_read = 0');
+  } else {
+    await pool.query(
+      `UPDATE ticket_feedback f
+       JOIN tickets t ON f.ticket_id = t.id
+       SET f.is_read = 1
+       WHERE t.assigned_officer_id = ?
+       AND f.is_read = 0`,
+      [officerId]
+    );
+  }
 };
 
 module.exports = {

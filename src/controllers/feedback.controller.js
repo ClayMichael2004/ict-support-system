@@ -6,6 +6,8 @@ const {
   markFeedbackAsRead,
 } = require('../services/feedback.service');
 
+const { logAction } = require('../services/audit.service');
+
 /**
  * STAFF: Submit feedback after ticket is closed
  */
@@ -19,6 +21,17 @@ const submitFeedbackController = asyncHandler(async (req, res) => {
     staffId: req.user.id,
   });
 
+  try {
+    await logAction({
+      userId: req.user.id,
+      action: 'SUBMIT_FEEDBACK',
+      entity: 'FEEDBACK',
+      entityId: feedback.id,
+    });
+  } catch (e) {
+    console.error('Audit log failed:', e);
+  }
+
   res.status(201).json({
     success: true,
     message: 'Feedback submitted successfully',
@@ -30,7 +43,8 @@ const submitFeedbackController = asyncHandler(async (req, res) => {
  * OFFICER: Get all feedback for officer's assigned tickets
  */
 const getOfficerFeedbackController = asyncHandler(async (req, res) => {
-  const feedback = await getOfficerFeedback(req.user.id);
+  const isAdmin = req.user && req.user.role === 'ADMIN';
+  const feedback = await getOfficerFeedback(req.user.id, isAdmin);
 
   res.status(200).json({
     success: true,
@@ -42,7 +56,8 @@ const getOfficerFeedbackController = asyncHandler(async (req, res) => {
  * OFFICER: Get count of unread feedback (for notification badge)
  */
 const getFeedbackCountController = asyncHandler(async (req, res) => {
-  const count = await getUnreadFeedbackCount(req.user.id);
+  const isAdmin = req.user && req.user.role === 'ADMIN';
+  const count = await getUnreadFeedbackCount(req.user.id, isAdmin);
 
   res.status(200).json({
     success: true,
@@ -54,7 +69,8 @@ const getFeedbackCountController = asyncHandler(async (req, res) => {
  * OFFICER: Mark all feedback as read
  */
 const markFeedbackAsReadController = asyncHandler(async (req, res) => {
-  await markFeedbackAsRead(req.user.id);
+  const isAdmin = req.user && req.user.role === 'ADMIN';
+  await markFeedbackAsRead(req.user.id, isAdmin);
 
   res.status(200).json({
     success: true,

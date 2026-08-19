@@ -4,45 +4,69 @@ const ticketSelect = document.getElementById('ticketId');
 
 const fetchTickets = async () => {
   try {
-    const res = await fetch('http://localhost:5000/api/tickets/user', { // tickets for this user
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await AuthHelper.fetchWithAuth('/api/tickets');
+    if (!res || !res.ok) return;
+
     const data = await res.json();
-    data.data.forEach(ticket => {
-      const option = document.createElement('option');
-      option.value = ticket.id;
-      option.textContent = `${ticket.title} - ${ticket.status}`;
-      ticketSelect.appendChild(option);
-    });
+    if (ticketSelect) {
+      ticketSelect.innerHTML = '<option value="">Select Closed Ticket</option>';
+      (data.data || []).forEach(ticket => {
+        if (ticket.status === 'CLOSED') {
+          const option = document.createElement('option');
+          option.value = ticket.id;
+          option.textContent = `#${ticket.id} - ${ticket.category_name || ticket.title}`;
+          ticketSelect.appendChild(option);
+        }
+      });
+    }
   } catch (err) {
     console.error(err);
   }
 };
 
-fetchTickets();
+if (ticketSelect) {
+  fetchTickets();
+}
 
 // Submit feedback
-feedbackForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const ticketId = ticketSelect.value;
-  const rating = document.getElementById('rating').value;
-  const comment = document.getElementById('comment').value;
+if (feedbackForm) {
+  feedbackForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const ticketId = ticketSelect ? ticketSelect.value : null;
+    const ratingEl = document.getElementById('rating');
+    const commentEl = document.getElementById('comment');
+    const rating = ratingEl ? ratingEl.value : null;
+    const comment = commentEl ? commentEl.value : null;
 
-  try {
-    const res = await fetch('http://localhost:5000/api/feedback', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ ticketId, rating, comment })
-    });
+    if (!ticketId) {
+      if (feedbackMessage) feedbackMessage.textContent = 'Please select a ticket';
+      return;
+    }
 
-    const data = await res.json();
-    if (data.success) feedbackMessage.textContent = 'Feedback submitted!';
-    else feedbackMessage.textContent = data.message;
+    try {
+      const res = await AuthHelper.fetchWithAuth('/api/feedback', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ticketId, rating, comment })
+      });
 
-  } catch (err) {
-    feedbackMessage.textContent = 'Server error';
-  }
-});
+      if (!res) return;
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (feedbackMessage) feedbackMessage.textContent = 'Feedback submitted successfully!';
+        showToast('Feedback submitted successfully!', 'success');
+        feedbackForm.reset();
+      } else {
+        if (feedbackMessage) feedbackMessage.textContent = data.message || 'Feedback submission failed';
+        showToast(data.message || 'Feedback submission failed', 'error');
+      }
+
+    } catch (err) {
+      if (feedbackMessage) feedbackMessage.textContent = err.message || 'Server error';
+      showToast(err.message || 'Server error', 'error');
+    }
+  });
+}
