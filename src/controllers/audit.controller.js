@@ -5,6 +5,7 @@ const getAuditLogsController = asyncHandler(async (req, res) => {
   const logs = await getAuditLogs();
 
   res.status(200).json({
+    success: true,
     status: 'success',
     results: logs.length,
     data: logs,

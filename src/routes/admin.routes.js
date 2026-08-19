@@ -3,6 +3,8 @@ const { protect } = require('../middlewares/auth.middleware');
 
 const { getOfficers, addOfficer } = require('../controllers/officers.controller');
 const { getLocations, createLocationController } = require('../controllers/locations.controller');
+const { getTicketsController } = require('../controllers/tickets.controller');
+const { getAuditLogsController } = require('../controllers/audit.controller');
 
 const router = express.Router();
 
@@ -14,12 +16,8 @@ router.post('/officers', addOfficer);
 router.get('/locations', getLocations);
 router.post('/locations', createLocationController);
 
-router.get('/tickets', (req, res) => {
-  res.json({ success: true, message: 'Admin tickets endpoint' });
-});
+router.get('/tickets', getTicketsController);
 
-router.get('/audit', (req, res) => {
-  res.json({ success: true, message: 'Admin audit endpoint' });
-});
+router.get('/audit', getAuditLogsController);
 
 module.exports = router;
