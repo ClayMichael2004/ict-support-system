@@ -1,13 +1,11 @@
 const ApiError = require('../utils/ApiError');
 
 module.exports = (err, req, res, next) => {
-  let statusCode = err.statusCode || 500;
+  let statusCode = err.statusCode || (err.status && typeof err.status === 'number' ? err.status : 500);
   let message = err.message || 'Internal Server Error';
 
-  // unexpected errors
-  if (!err.isOperational) {
-    console.error('UNEXPECTED ERROR:', err);
-    message = 'Something went wrong';
+  if (!err.statusCode && !err.isOperational) {
+    console.error('SERVER ERROR:', err);
   }
 
   res.status(statusCode).json({
