@@ -2,6 +2,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const pool = require('../config/db');
 const ApiError = require('../utils/ApiError');
 
+const { logAction } = require('../services/audit.service');
+
 const getLocations = asyncHandler(async (req, res) => {
   const [rows] = await pool.query(
     `SELECT l.id, l.name, l.building, u.full_name AS officerName
@@ -27,6 +29,17 @@ const createLocationController = asyncHandler(async (req, res) => {
     'INSERT INTO locations (name, building, officer_id, is_active) VALUES (?, ?, ?, 1)',
     [name, building || null, officerId]
   );
+
+  try {
+    await logAction({
+      userId: req.user ? req.user.id : null,
+      action: 'CREATE_LOCATION',
+      entity: 'LOCATION',
+      entityId: result.insertId,
+    });
+  } catch (e) {
+    console.error('Audit log error:', e);
+  }
 
   res.status(201).json({
     success: true,
