@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 
 // Import routes
@@ -18,7 +19,11 @@ const errorMiddleware = require('./middlewares/error.middleware');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -37,6 +42,7 @@ app.use('/api/admin', adminRoutes);
 
 // Officers
 app.use('/api/officer', officersRoutes);
+app.use('/api/officers', officersRoutes);
 
 // Locations
 app.use('/api/locations', locationsRoutes);

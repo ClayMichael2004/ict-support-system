@@ -11,18 +11,29 @@ const roleMap = {
 const protect = (allowedRoles = []) => {
   return async (req, res, next) => {
     try {
-      const authHeader = req.headers.authorization;
+      let token = null;
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // 1. Check cookies first (httpOnly cookie)
+      if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+      } 
+      // 2. Fallback to Authorization header
+      else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+      }
+
+      if (!token) {
         throw new ApiError(401, 'Authorization token missing');
       }
 
-      const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // 🔥 FETCH USER FROM DB with full details
+      // FETCH USER FROM DB with role name
       const [rows] = await pool.query(
-        'SELECT id, full_name, email, role_id, is_active FROM users WHERE id = ?',
+        `SELECT u.id, u.full_name, u.email, u.role_id, u.is_active, r.name AS role_name 
+         FROM users u 
+         LEFT JOIN roles r ON u.role_id = r.id 
+         WHERE u.id = ?`,
         [decoded.id]
       );
 
@@ -31,7 +42,7 @@ const protect = (allowedRoles = []) => {
       }
 
       const user = rows[0];
-      const role = roleMap[user.role_id];
+      const role = (user.role_name || roleMap[user.role_id] || decoded.role || '').toUpperCase();
 
       req.user = {
         id: user.id,
@@ -42,19 +53,13 @@ const protect = (allowedRoles = []) => {
         email: user.email,
       };
 
-      // 🐛 DEBUG LOGGING
-      console.log('🔐 Auth Debug:');
-      console.log('  User ID:', req.user.id);
-      console.log('  User Role:', req.user.role);
-      console.log('  Allowed Roles:', allowedRoles);
-      console.log('  Has Access?', allowedRoles.length === 0 || allowedRoles.includes(role));
-
-      if (allowedRoles.length && !allowedRoles.includes(role)) {
-        console.log('  ❌ ACCESS DENIED');
-        throw new ApiError(403, 'Access forbidden');
+      if (allowedRoles.length) {
+        const normalizedAllowed = allowedRoles.map(r => r.toUpperCase());
+        if (!normalizedAllowed.includes(role)) {
+          throw new ApiError(403, 'Access forbidden');
+        }
       }
 
-      console.log('  ✅ ACCESS GRANTED');
       next();
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
