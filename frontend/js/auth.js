@@ -11,6 +11,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         email: emailInput.value.trim(),
         password: passwordInput.value
@@ -31,12 +32,14 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       return;
     }
 
-    // ✅ Correct response path
-    const token = data.data.token;
-    const user = data.data.user;
-    const role = user.role;
+    // Clean up any legacy token
+    localStorage.removeItem('token');
 
-    localStorage.setItem('token', token);
+    const user = data.data.user;
+    const role = (user.role || '').toUpperCase();
+
+    // Cache user profile for immediate UI use
+    sessionStorage.setItem('user', JSON.stringify(user));
 
     // ✅ Role-based redirect
     if (role === 'ADMIN') {
