@@ -1714,4 +1714,4 @@ const pool = mysql.createPool({
 
 **Document Version**: 1.0.0  
 **Last Updated**: August 19, 2026  
-**Maintained By**: Development Team
+**Maintained By**: Michael Clay Ochieng
