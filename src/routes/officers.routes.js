@@ -27,10 +27,10 @@ router.get('/staff', protect(['ADMIN', 'OFFICER']), getStaff);
 router.post('/staff', protect(['ADMIN', 'OFFICER']), registerStaff);
 
 /**
- * OFFICER routes — feedback
+ * OFFICER / ADMIN routes — feedback
  */
-router.get('/feedback', protect(['OFFICER']), getOfficerFeedbackController);
-router.get('/feedback/count', protect(['OFFICER']), getFeedbackCountController);
-router.patch('/feedback/read', protect(['OFFICER']), markFeedbackAsReadController);
+router.get('/feedback', protect(['ADMIN', 'OFFICER']), getOfficerFeedbackController);
+router.get('/feedback/count', protect(['ADMIN', 'OFFICER']), getFeedbackCountController);
+router.patch('/feedback/read', protect(['ADMIN', 'OFFICER']), markFeedbackAsReadController);
 
 module.exports = router;

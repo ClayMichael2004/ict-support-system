@@ -44,10 +44,12 @@ exports.getAllStaff = async () => {
     `SELECT 
        id,
        full_name AS fullName,
+       full_name,
        email,
        created_at
      FROM users
-     WHERE role_id = 3 AND is_active = 1`
+     WHERE role_id = 3 AND is_active = 1
+     ORDER BY id DESC`
   );
   return rows;
 };
