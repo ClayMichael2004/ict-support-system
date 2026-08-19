@@ -16,27 +16,63 @@ const login = asyncHandler(async (req, res) => {
 
   const user = await loginUser(email, password);
 
-   const token = jwt.sign(
+  const token = jwt.sign(
     {
       id: user.id,
       role: user.role,
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN,
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     }
   );
-console.log('LOGIN HIT', req.body);
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Set secure httpOnly cookie
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/'
+  });
 
   res.status(200).json({
     status: 'success',
     data: {
-      token,
       user,
+    },
+  });
+});
+
+const logout = asyncHandler(async (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/'
+  });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Logged out successfully',
+  });
+});
+
+const getMe = asyncHandler(async (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user: req.user,
     },
   });
 });
 
 module.exports = {
   login,
+  logout,
+  getMe,
 };
