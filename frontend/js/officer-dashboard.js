@@ -1,4 +1,4 @@
-AuthHelper.requireAuth();
+AuthHelper.requireAuth(['OFFICER', 'ADMIN']);
 
 const ticketsTableBody = document.querySelector('#tickets-table tbody');
 const staffTableBody = document.querySelector('#staffTable tbody');
@@ -20,7 +20,8 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
 
     btn.classList.add('active');
-    document.getElementById(btn.dataset.panel).classList.add('active');
+    const panel = document.getElementById(btn.dataset.panel);
+    if (panel) panel.classList.add('active');
 
     if (btn.dataset.panel === 'staffPanel') fetchStaff();
     if (btn.dataset.panel === 'feedbackPanel') fetchFeedback();
@@ -40,45 +41,57 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 const fetchTickets = async () => {
   try {
     const res = await AuthHelper.fetchWithAuth('/api/tickets');
-    if (!res.ok) throw new Error();
+    if (!res) return;
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch tickets');
+    }
 
     const { data = [] } = await res.json();
     ticketsTableBody.innerHTML = '';
 
     let open = 0, inProgress = 0, closed = 0;
 
-    data.forEach(ticket => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${ticket.id}</td>
-        <td>${ticket.title}</td>
-        <td>${ticket.status}</td>
-        <td>${ticket.location_name || ticket.location_id}</td>
-        <td>${new Date(ticket.opened_at || ticket.created_at).toLocaleString()}</td>
-        <td>
-          ${ticket.status !== 'CLOSED'
-            ? `<button class="btn" onclick="event.stopPropagation(); updateStatus(${ticket.id}, 'IN_PROGRESS')">In Progress</button>
-               <button class="btn danger" onclick="event.stopPropagation(); updateStatus(${ticket.id}, 'CLOSED')">Close</button>`
-            : '-'}
-        </td>
-      `;
-      
-      // Make row clickable to view details
-      tr.addEventListener('click', () => viewTicketDetails(ticket.id));
-      
-      ticketsTableBody.appendChild(tr);
+    if (data.length === 0) {
+      ticketsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">No tickets assigned to you yet</td></tr>';
+    } else {
+      data.forEach(ticket => {
+        const tr = document.createElement('tr');
+        const statusClass = (ticket.status || '').toLowerCase().replace('_', '-');
+        const opened = ticket.opened_at || ticket.openedAt || ticket.created_at;
 
-      if (ticket.status === 'OPEN') open++;
-      if (ticket.status === 'IN_PROGRESS') inProgress++;
-      if (ticket.status === 'CLOSED') closed++;
-    });
+        tr.innerHTML = `
+          <td>${ticket.id}</td>
+          <td>${ticket.category_name || ticket.title}</td>
+          <td><span class="status-badge ${statusClass}">${ticket.status}</span></td>
+          <td>${ticket.location_name || ticket.locationName || '-'}</td>
+          <td>${opened ? new Date(opened).toLocaleString() : '-'}</td>
+          <td>
+            ${ticket.status !== 'CLOSED'
+              ? `<button class="btn" onclick="event.stopPropagation(); updateStatus(${ticket.id}, 'IN_PROGRESS')">In Progress</button>
+                 <button class="btn danger" onclick="event.stopPropagation(); updateStatus(${ticket.id}, 'CLOSED')">Close</button>`
+              : '<span style="color: #059669; font-weight: 500;">Resolved</span>'}
+          </td>
+        `;
+        
+        // Make row clickable to view details
+        tr.addEventListener('click', () => viewTicketDetails(ticket.id));
+        
+        ticketsTableBody.appendChild(tr);
+
+        if (ticket.status === 'OPEN') open++;
+        if (ticket.status === 'IN_PROGRESS') inProgress++;
+        if (ticket.status === 'CLOSED') closed++;
+      });
+    }
 
     openTicketsEl.textContent = open;
     inProgressTicketsEl.textContent = inProgress;
     closedTicketsEl.textContent = closed;
 
   } catch (err) {
-    alert('Failed to fetch tickets: ' + err.message);
+    console.error(err);
+    showToast('Failed to fetch tickets: ' + err.message, 'error');
   }
 };
 
@@ -88,34 +101,39 @@ const fetchTickets = async () => {
 const viewTicketDetails = async (ticketId) => {
   try {
     const res = await AuthHelper.fetchWithAuth(`/api/tickets/${ticketId}`);
+    if (!res) return;
+
     if (!res.ok) throw new Error('Failed to fetch ticket details');
 
     const { data: ticket } = await res.json();
 
     // Populate modal with ticket details
     document.getElementById('modal-ticket-id').textContent = ticket.id;
-    document.getElementById('modal-ticket-title').textContent = ticket.title;
+    document.getElementById('modal-ticket-title').textContent = ticket.category_name || ticket.title;
     
     // Status badge
     const statusEl = document.getElementById('modal-ticket-status');
-    const statusClass = ticket.status.toLowerCase().replace('_', '-');
+    const statusClass = (ticket.status || '').toLowerCase().replace('_', '-');
     statusEl.innerHTML = `<span class="status-badge ${statusClass}">${ticket.status}</span>`;
     
-    document.getElementById('modal-ticket-description').textContent = ticket.description;
+    document.getElementById('modal-ticket-description').textContent = ticket.description || 'No description provided';
     
     // User info
-    document.getElementById('modal-user-name').textContent = ticket.user_full_name || 'N/A';
+    document.getElementById('modal-user-name').textContent = ticket.user_full_name || ticket.userName || 'N/A';
     document.getElementById('modal-user-email').textContent = ticket.user_email || 'N/A';
     
     // Location info
-    document.getElementById('modal-location-name').textContent = ticket.location_name || 'N/A';
-    document.getElementById('modal-location-building').textContent = ticket.location_building || 'N/A';
+    document.getElementById('modal-location-name').textContent = ticket.location_name || ticket.locationName || 'N/A';
+    document.getElementById('modal-location-building').textContent = ticket.location_building || ticket.building || 'N/A';
     
     // Timeline
+    const opened = ticket.opened_at || ticket.openedAt || ticket.created_at;
+    const closed = ticket.closed_at || ticket.closedAt;
+
     document.getElementById('modal-opened-at').textContent = 
-      ticket.opened_at ? new Date(ticket.opened_at).toLocaleString() : 'N/A';
+      opened ? new Date(opened).toLocaleString() : 'N/A';
     document.getElementById('modal-closed-at').textContent = 
-      ticket.closed_at ? new Date(ticket.closed_at).toLocaleString() : 'Not yet closed';
+      closed ? new Date(closed).toLocaleString() : 'Not yet closed';
     document.getElementById('modal-solved-by').textContent = ticket.solved_by_name || 'N/A';
     
     // Action buttons
@@ -141,7 +159,7 @@ const viewTicketDetails = async (ticketId) => {
     ticketModal.classList.add('active');
 
   } catch (error) {
-    alert('Failed to load ticket details: ' + error.message);
+    showToast('Failed to load ticket details: ' + error.message, 'error');
   }
 };
 
@@ -171,15 +189,20 @@ document.addEventListener('keydown', (e) => {
 ======================= */
 const updateStatus = async (id, status) => {
   try {
-    await AuthHelper.fetchWithAuth(`/api/tickets/${id}/status`, {
+    const res = await AuthHelper.fetchWithAuth(`/api/tickets/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status })
     });
 
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to update status');
+
+    showToast(`Ticket #${id} marked as ${status}`, 'success');
     fetchTickets();
   } catch (err) {
-    alert('Failed to update status: ' + err.message);
+    showToast('Failed to update status: ' + err.message, 'error');
   }
 };
 
@@ -194,24 +217,36 @@ const updateStatusFromModal = async (id, status) => {
 const fetchStaff = async () => {
   try {
     const res = await AuthHelper.fetchWithAuth('/api/officer/staff');
-    if (!res.ok) throw new Error();
+    if (!res) return;
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to load staff');
+    }
 
     const { data = [] } = await res.json();
     staffTableBody.innerHTML = '';
 
+    if (data.length === 0) {
+      staffTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888; padding: 20px;">No registered staff found</td></tr>';
+      return;
+    }
+
     data.forEach(user => {
       const tr = document.createElement('tr');
+      const regDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : '-';
       tr.innerHTML = `
         <td>${user.id}</td>
-        <td>${user.fullName}</td>
+        <td>${user.fullName || user.full_name || '-'}</td>
         <td>${user.email}</td>
-        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+        <td>${regDate}</td>
       `;
       staffTableBody.appendChild(tr);
     });
 
   } catch (err) {
-    alert('Failed to load staff: ' + err.message);
+    console.error(err);
+    showToast('Failed to load staff: ' + err.message, 'error');
   }
 };
 
@@ -221,24 +256,39 @@ const fetchStaff = async () => {
 document.getElementById('staffForm').addEventListener('submit', async e => {
   e.preventDefault();
 
+  const fullNameInput = document.getElementById('fullName');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+
+  const fullName = fullNameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  if (!fullName || !email || !password) {
+    return showToast('All fields are required', 'warning');
+  }
+
   try {
     const res = await AuthHelper.fetchWithAuth('/api/officer/staff', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fullName: fullName.value,
-        email: email.value,
-        password: password.value
+        fullName,
+        email,
+        password
       })
     });
 
-    if (!res.ok) throw new Error('Registration failed');
+    if (!res) return;
 
-    alert('Staff registered successfully');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Registration failed');
+
+    showToast('Staff registered successfully', 'success');
     e.target.reset();
     fetchStaff(); // Refresh the staff list
   } catch (err) {
-    alert('Registration failed: ' + err.message);
+    showToast(err.message || 'Registration failed', 'error');
   }
 });
 
@@ -248,7 +298,12 @@ document.getElementById('staffForm').addEventListener('submit', async e => {
 const fetchFeedback = async () => {
   try {
     const res = await AuthHelper.fetchWithAuth('/api/officer/feedback');
-    if (!res.ok) throw new Error();
+    if (!res) return;
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to load feedback');
+    }
 
     const { data = [] } = await res.json();
     feedbackContainer.innerHTML = '';
@@ -265,19 +320,19 @@ const fetchFeedback = async () => {
 
     data.forEach(feedback => {
       const isNew = !feedback.is_read;
-      const stars = renderStars(feedback.rating);
+      const stars = renderStars(feedback.rating || 0);
       
       const feedbackEl = document.createElement('div');
       feedbackEl.className = `feedback-item ${isNew ? 'new' : ''}`;
       feedbackEl.innerHTML = `
         <div class="feedback-header">
           <div>
-            <h4 class="feedback-title">Ticket #${feedback.ticket_id}: ${feedback.ticket_title}</h4>
+            <h4 class="feedback-title">Ticket #${feedback.ticket_id}: ${feedback.ticket_title || 'Support Ticket'}</h4>
             <div class="feedback-meta">
-              From: <strong>${feedback.staff_name}</strong> (${feedback.staff_email})
+              From: <strong>${feedback.staff_name || 'Staff Member'}</strong> (${feedback.staff_email || 'N/A'})
             </div>
           </div>
-          <div class="feedback-rating" title="${feedback.rating}/5 stars">
+          <div class="feedback-rating" title="${feedback.rating || 0}/5 stars">
             ${stars}
           </div>
         </div>
@@ -286,7 +341,7 @@ const fetchFeedback = async () => {
           ${feedback.comment ? `<div class="feedback-comment">"${feedback.comment}"</div>` : '<em style="color: #999;">No comment provided</em>'}
           
           <div class="feedback-ticket-info">
-            <strong>Ticket:</strong> ${feedback.ticket_description}
+            <strong>Ticket Description:</strong> ${feedback.ticket_description || '-'}
           </div>
         </div>
         
@@ -298,11 +353,18 @@ const fetchFeedback = async () => {
       feedbackContainer.appendChild(feedbackEl);
     });
 
-    // ✅ Mark all as read and clear badge
+    // Mark all as read and clear badge
     await markFeedbackAsRead();
 
   } catch (err) {
-    feedbackContainer.innerHTML = '<p style="color: red;">Failed to load feedback</p>';
+    console.error(err);
+    feedbackContainer.innerHTML = `
+      <div class="no-feedback">
+        <div class="no-feedback-icon">⚠️</div>
+        <p style="color: #dc2626;">Failed to load feedback. Please try again later.</p>
+      </div>
+    `;
+    showToast('Failed to load feedback: ' + err.message, 'error');
   }
 };
 
@@ -328,11 +390,11 @@ const markFeedbackAsRead = async () => {
 const fetchFeedbackCount = async () => {
   try {
     const res = await AuthHelper.fetchWithAuth('/api/officer/feedback/count');
-    if (!res.ok) return;
+    if (!res || !res.ok) return;
 
     const { data } = await res.json();
     
-    if (data.count > 0) {
+    if (data && data.count > 0) {
       feedbackBadge.textContent = data.count;
       feedbackBadge.style.display = 'inline-block';
     } else {
@@ -356,6 +418,7 @@ const renderStars = (rating) => {
 };
 
 const formatTimestamp = (timestamp) => {
+  if (!timestamp) return 'Recently';
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
@@ -370,12 +433,13 @@ const formatTimestamp = (timestamp) => {
   
   return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
 };
+
 // Poll every 30 seconds
 setInterval(() => {
-  fetchFeedbackCount(); // Updates the badge silently in background
+  fetchFeedbackCount();
 }, 30000);
 
-// Also refresh tickets silently every 60 seconds
+// Refresh tickets silently every 60 seconds
 setInterval(() => {
   fetchTickets();
 }, 60000);
@@ -383,3 +447,4 @@ setInterval(() => {
 /* INIT */
 fetchTickets();
 fetchFeedbackCount();
+

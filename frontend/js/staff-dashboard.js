@@ -1,12 +1,13 @@
-const token = localStorage.getItem('token');
-if (!token) window.location.href = 'login.html';
+AuthHelper.requireAuth(['STAFF', 'OFFICER', 'ADMIN']);
 
 let selectedCategory = null;
+let selectedCategoryId = null;
 
 const tableBody = document.getElementById('tickets-table');
 const openTicketsEl = document.getElementById('openTickets');
 const closedTicketsEl = document.getElementById('closedTickets');
 const locationSelect = document.getElementById('locationSelect');
+const categoryContainer = document.getElementById('categoryContainer');
 
 /* NAVIGATION */
 document.querySelectorAll('.nav-item').forEach(btn => {
@@ -15,40 +16,49 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
 
     btn.classList.add('active');
-    document.getElementById(btn.dataset.panel).classList.add('active');
+    const panel = document.getElementById(btn.dataset.panel);
+    if (panel) panel.classList.add('active');
+
+    if (btn.dataset.panel === 'ticketsPanel') fetchTickets();
+    if (btn.dataset.panel === 'createPanel') {
+      loadCategories();
+      loadLocations();
+    }
   });
 });
 
 /* LOGOUT */
 document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem('token');
-  window.location.href = 'login.html';
+  AuthHelper.logout();
 });
 
 /* CATEGORY SELECTION */
-const categoryContainer = document.getElementById('categoryContainer');
-let selectedCategoryId = null;
-
 const loadCategories = async () => {
   try {
-    const res = await fetch('/api/categories', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await AuthHelper.fetchWithAuth('/api/categories');
+    if (!res) return;
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to load categories');
+    }
 
     const data = await res.json();
     categoryContainer.innerHTML = '';
 
-    if (!res.ok) {
-      alert(data.message || 'Failed to load categories');
+    const categories = data.data || [];
+
+    if (categories.length === 0) {
+      categoryContainer.innerHTML = '<p style="color: #6b7280; grid-column: 1/-1;">No ticket categories available</p>';
       return;
     }
 
-    (data.data || []).forEach(cat => {
+    categories.forEach(cat => {
       const card = document.createElement('div');
-      card.className = 'category-card';
+      card.className = `category-card ${selectedCategoryId === cat.id ? 'selected' : ''}`;
       card.innerHTML = `
         <h4>${cat.name}</h4>
-        <p>${cat.description}</p>
+        <p style="font-size: 12px; margin-top: 6px; font-weight: normal; opacity: 0.85;">${cat.description || ''}</p>
       `;
 
       card.addEventListener('click', () => {
@@ -64,79 +74,88 @@ const loadCategories = async () => {
     });
   } catch (err) {
     console.error(err);
-    alert('Error loading categories');
+    categoryContainer.innerHTML = '<p style="color: #ef4444; grid-column: 1/-1;">Error loading categories</p>';
+    showToast('Error loading categories: ' + err.message, 'error');
   }
 };
 
 /* LOAD LOCATIONS */
 const loadLocations = async () => {
   try {
-    const res = await fetch('http://localhost:5000/api/locations', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-    locationSelect.innerHTML = '';
+    const res = await AuthHelper.fetchWithAuth('/api/locations');
+    if (!res) return;
 
     if (!res.ok) {
-      alert(data.message || 'Failed to load locations');
-      return;
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to load locations');
     }
 
-    (data.data || []).forEach(loc => {
+    const data = await res.json();
+    locationSelect.innerHTML = '<option value="">Select Location</option>';
+
+    const locations = data.data || [];
+    locations.forEach(loc => {
       const opt = document.createElement('option');
       opt.value = loc.id;
-      opt.textContent = `${loc.name} (${loc.building || 'N/A'})`;
+      opt.textContent = `${loc.name} (${loc.building || 'Main Building'})`;
       locationSelect.appendChild(opt);
     });
   } catch (err) {
     console.error(err);
-    alert('Error loading locations');
+    showToast('Error loading locations: ' + err.message, 'error');
   }
 };
 
 /* FETCH TICKETS */
 const fetchTickets = async () => {
   try {
-    const res = await fetch('http://localhost:5000/api/tickets', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await AuthHelper.fetchWithAuth('/api/tickets');
+    if (!res) return;
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to load tickets');
+    }
 
     const data = await res.json();
     tableBody.innerHTML = '';
 
-    if (!res.ok) {
-      alert(data.message || 'Failed to load tickets');
-      return;
-    }
-
     let open = 0;
     let closed = 0;
 
-    (data.data || []).forEach(t => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${t.id}</td>
-        <td>${t.title}</td>
-        <td>${t.status}</td>
-        <td>${t.location_name ?? '-'}</td>
-        <td>${new Date(t.opened_at).toLocaleString()}</td>
-        <td>
-          ${t.status === 'CLOSED'
-            ? `<button class="btn" onclick="openFeedbackModal(${t.id})">Feedback</button>`
-            : '-'}
-        </td>
-      `;
-      tableBody.appendChild(tr);
+    const tickets = data.data || [];
 
-      t.status === 'CLOSED' ? closed++ : open++;
-    });
+    if (tickets.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888; padding: 20px;">You have not submitted any tickets yet</td></tr>';
+    } else {
+      tickets.forEach(t => {
+        const tr = document.createElement('tr');
+        const statusClass = (t.status || '').toLowerCase().replace('_', '-');
+        const opened = t.opened_at || t.openedAt || t.created_at;
+
+        tr.innerHTML = `
+          <td>${t.id}</td>
+          <td>${t.category_name || t.title}</td>
+          <td><span class="status-badge ${statusClass}">${t.status}</span></td>
+          <td>${t.location_name || t.locationName || '-'}</td>
+          <td>${opened ? new Date(opened).toLocaleString() : '-'}</td>
+          <td>
+            ${t.status === 'CLOSED'
+              ? `<button class="btn" onclick="openFeedbackModal(${t.id})">Feedback</button>`
+              : '<span style="color: #6b7280; font-size: 13px;">In Review</span>'}
+          </td>
+        `;
+        tableBody.appendChild(tr);
+
+        t.status === 'CLOSED' ? closed++ : open++;
+      });
+    }
 
     openTicketsEl.textContent = open;
     closedTicketsEl.textContent = closed;
   } catch (err) {
     console.error(err);
-    alert('Error fetching tickets');
+    showToast('Error fetching tickets: ' + err.message, 'error');
   }
 };
 
@@ -144,20 +163,27 @@ const fetchTickets = async () => {
 document.getElementById('ticketForm').addEventListener('submit', async e => {
   e.preventDefault();
 
-  if (!selectedCategory) {
-    alert('Please select a ticket category');
-    return;
+  if (!selectedCategoryId) {
+    return showToast('Please select an issue category', 'warning');
   }
 
-  const description = document.getElementById('description').value;
+  const descriptionInput = document.getElementById('description');
+  const description = descriptionInput.value.trim();
   const locationId = locationSelect.value;
 
+  if (!locationId) {
+    return showToast('Please select your location', 'warning');
+  }
+
+  if (!description) {
+    return showToast('Please describe the issue', 'warning');
+  }
+
   try {
-    const res = await fetch('http://localhost:5000/api/tickets', {
+    const res = await AuthHelper.fetchWithAuth('/api/tickets', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         categoryId: selectedCategoryId,
@@ -166,22 +192,32 @@ document.getElementById('ticketForm').addEventListener('submit', async e => {
       }),
     });
 
+    if (!res) return;
+
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.message || 'Failed to create ticket');
-      return;
+      throw new Error(data.message || 'Failed to create ticket');
     }
 
-    alert('Ticket submitted successfully');
+    showToast('Ticket submitted successfully!', 'success');
     selectedCategory = null;
     selectedCategoryId = null;
     document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
     e.target.reset();
+
+    // Switch back to tickets list
     fetchTickets();
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const ticketsNav = document.querySelector('[data-panel="ticketsPanel"]');
+    const ticketsPanel = document.getElementById('ticketsPanel');
+    if (ticketsNav) ticketsNav.classList.add('active');
+    if (ticketsPanel) ticketsPanel.classList.add('active');
+
   } catch (err) {
     console.error(err);
-    alert('Error submitting ticket');
+    showToast(err.message || 'Error submitting ticket', 'error');
   }
 });
 
@@ -226,33 +262,33 @@ document.getElementById('feedbackForm').addEventListener('submit', async (e) => 
   const comment = document.getElementById('feedbackComment').value.trim() || null;
 
   try {
-    const res = await fetch('/api/feedback', {
+    const res = await AuthHelper.fetchWithAuth('/api/feedback', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ticketId, rating, comment }),
     });
 
+    if (!res) return;
+
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.message || 'Failed to submit feedback');
-      return;
+      throw new Error(data.message || 'Failed to submit feedback');
     }
 
     closeFeedbackModal();
-    alert('Feedback submitted successfully!');
+    showToast('Thank you! Feedback submitted successfully.', 'success');
     fetchTickets();
 
   } catch (err) {
     console.error(err);
-    alert('Error submitting feedback');
+    showToast(err.message || 'Error submitting feedback', 'error');
   }
 });
 
-// refresh tickets silently every 60 seconds
+// Refresh tickets silently every 60 seconds
 setInterval(() => {
   fetchTickets();
 }, 60000);
@@ -261,3 +297,4 @@ setInterval(() => {
 loadCategories();
 loadLocations();
 fetchTickets();
+

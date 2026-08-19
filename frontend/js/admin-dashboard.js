@@ -1,10 +1,9 @@
-const token = localStorage.getItem('token');
-if (!token) window.location.href = 'login.html';
+// Authenticate
+AuthHelper.requireAuth('ADMIN');
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem('token');
-  window.location.href = 'login.html';
+  AuthHelper.logout();
 });
 
 // DOM elements
@@ -24,22 +23,29 @@ const addOfficerForm = document.getElementById('addOfficerForm');
 
 // Helper: safely extract array from API response
 const getArray = (res) => {
-  if (!res || !Array.isArray(res.data)) return [];
-  return res.data;
+  if (!res) return [];
+  if (Array.isArray(res.data)) return res.data;
+  if (Array.isArray(res)) return res;
+  return [];
 };
 
 // Fetch dashboard data and populate tables
 const fetchDashboardData = async () => {
   try {
     const [offRes, locRes, tickRes, auditRes] = await Promise.all([
-      fetch('/api/admin/officers', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/admin/locations', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/admin/tickets', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/admin/audit', { headers: { Authorization: `Bearer ${token}` } }),
+      AuthHelper.fetchWithAuth('/api/admin/officers'),
+      AuthHelper.fetchWithAuth('/api/admin/locations'),
+      AuthHelper.fetchWithAuth('/api/admin/tickets'),
+      AuthHelper.fetchWithAuth('/api/admin/audit'),
     ]);
 
+    if (!offRes || !locRes || !tickRes || !auditRes) {
+      // If any is null, AuthHelper handled redirect/session expiry
+      return;
+    }
+
     if (![offRes, locRes, tickRes, auditRes].every(r => r.ok)) {
-      throw new Error('One or more admin endpoints failed');
+      throw new Error('One or more admin endpoints failed to load');
     }
 
     const officers = getArray(await offRes.json());
@@ -56,66 +62,89 @@ const fetchDashboardData = async () => {
     // Officers table
     officersTableBody.innerHTML = '';
     officerSelect.innerHTML = '<option value="">Select Officer</option>';
-    officers.forEach(off => {
-      officerSelect.innerHTML += `<option value="${off.id}">${off.fullName}</option>`;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${off.id}</td>
-        <td>${off.fullName}</td>
-        <td>${off.email}</td>
-        <td>-</td>
-      `;
-      officersTableBody.appendChild(tr);
-    });
+    
+    if (officers.length === 0) {
+      officersTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">No officers registered yet</td></tr>';
+    } else {
+      officers.forEach(off => {
+        const offName = off.fullName || off.full_name || 'Officer';
+        officerSelect.innerHTML += `<option value="${off.id}">${offName}</option>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${off.id}</td>
+          <td>${offName}</td>
+          <td>${off.email}</td>
+          <td>Active</td>
+        `;
+        officersTableBody.appendChild(tr);
+      });
+    }
 
     // Locations table
     locationsTableBody.innerHTML = '';
-    locations.forEach(loc => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${loc.id}</td>
-        <td>${loc.name}</td>
-        <td>${loc.building || '-'}</td>
-        <td>${loc.officerName || '-'}</td>
-      `;
-      locationsTableBody.appendChild(tr);
-    });
+    if (locations.length === 0) {
+      locationsTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">No locations added yet</td></tr>';
+    } else {
+      locations.forEach(loc => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${loc.id}</td>
+          <td>${loc.name}</td>
+          <td>${loc.building || '-'}</td>
+          <td>${loc.officerName || loc.officer_name || '-'}</td>
+        `;
+        locationsTableBody.appendChild(tr);
+      });
+    }
 
     // Tickets table
     ticketsTableBody.innerHTML = '';
-    tickets.forEach(t => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${t.id}</td>
-        <td>${t.title}</td>
-        <td>${t.status}</td>
-        <td>${t.userName || '-'}</td>
-        <td>${t.locationName || '-'}</td>
-        <td>${t.assignedOfficerName || '-'}</td>
-        <td>${t.openedAt ? new Date(t.openedAt).toLocaleString() : '-'}</td>
-        <td>${t.closedAt ? new Date(t.closedAt).toLocaleString() : '-'}</td>
-      `;
-      ticketsTableBody.appendChild(tr);
-    });
+    if (tickets.length === 0) {
+      ticketsTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #888;">No tickets created yet</td></tr>';
+    } else {
+      tickets.forEach(t => {
+        const tr = document.createElement('tr');
+        const statusClass = (t.status || '').toLowerCase().replace('_', '-');
+        const opened = t.openedAt || t.opened_at || t.created_at;
+        const closed = t.closedAt || t.closed_at;
+
+        tr.innerHTML = `
+          <td>${t.id}</td>
+          <td>${t.category_name || t.title}</td>
+          <td><span class="status-badge ${statusClass}">${t.status}</span></td>
+          <td>${t.userName || t.user_full_name || '-'}</td>
+          <td>${t.locationName || t.location_name || '-'}</td>
+          <td>${t.assignedOfficerName || t.officer_full_name || '-'}</td>
+          <td>${opened ? new Date(opened).toLocaleString() : '-'}</td>
+          <td>${closed ? new Date(closed).toLocaleString() : '-'}</td>
+        `;
+        ticketsTableBody.appendChild(tr);
+      });
+    }
 
     // Audit logs
     auditTableBody.innerHTML = '';
-    audits.forEach(a => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${a.id}</td>
-        <td>${a.userName}</td>
-        <td>${a.action}</td>
-        <td>${a.entity}</td>
-        <td>${a.entityId}</td>
-        <td>${a.createdAt ? new Date(a.createdAt).toLocaleString() : '-'}</td>
-      `;
-      auditTableBody.appendChild(tr);
-    });
+    if (audits.length === 0) {
+      auditTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">No audit logs recorded yet</td></tr>';
+    } else {
+      audits.forEach(a => {
+        const tr = document.createElement('tr');
+        const time = a.createdAt || a.created_at;
+        tr.innerHTML = `
+          <td>${a.id}</td>
+          <td>${a.userName || a.user || '-'}</td>
+          <td><strong>${a.action}</strong></td>
+          <td>${a.entity}</td>
+          <td>${a.entityId || a.entity_id || '-'}</td>
+          <td>${time ? new Date(time).toLocaleString() : '-'}</td>
+        `;
+        auditTableBody.appendChild(tr);
+      });
+    }
 
   } catch (err) {
     console.error(err);
-    alert('Failed to load admin dashboard data');
+    showToast('Failed to load dashboard data: ' + err.message, 'error');
   }
 };
 
@@ -124,33 +153,36 @@ if (addLocationForm) {
   addLocationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const name = document.getElementById('locationName').value.trim();
-    const building = document.getElementById('building').value.trim();
+    const nameInput = document.getElementById('locationName');
+    const buildingInput = document.getElementById('building');
+    const name = nameInput.value.trim();
+    const building = buildingInput.value.trim();
     const officerId = officerSelect.value;
 
     if (!name || !officerId) {
-      return alert('Please fill in all required fields.');
+      return showToast('Please fill in all required fields.', 'warning');
     }
 
     try {
-      const res = await fetch('/api/admin/locations', {
+      const res = await AuthHelper.fetchWithAuth('/api/admin/locations', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ name, building, officerId })
       });
 
+      if (!res) return;
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add location');
 
-      alert('Location added successfully');
+      showToast('Location added successfully', 'success');
       addLocationForm.reset();
       fetchDashboardData();
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      showToast(err.message || 'Failed to add location', 'error');
     }
   });
 }
@@ -160,33 +192,38 @@ if (addOfficerForm) {
   addOfficerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const fullName = document.getElementById('fullName').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
+    const fullNameInput = document.getElementById('fullName');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+
+    const fullName = fullNameInput.value.trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
 
     if (!fullName || !email || !password) {
-      return alert('All fields are required.');
+      return showToast('All fields are required.', 'warning');
     }
 
     try {
-      const res = await fetch('/api/admin/officers', {
+      const res = await AuthHelper.fetchWithAuth('/api/admin/officers', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ fullName, email, password })
       });
 
+      if (!res) return;
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add officer');
 
-      alert('Officer added successfully');
+      showToast('Officer added successfully', 'success');
       addOfficerForm.reset();
       fetchDashboardData();
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      showToast(err.message || 'Failed to add officer', 'error');
     }
   });
 }
@@ -204,3 +241,4 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 
 // Initial fetch
 fetchDashboardData();
+
